@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature and Humidity Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <canvas id="myChart"></canvas>
+    <script>
+        var ctx = document.getElementById('myChart').getContext('2d');
+        var myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '24:00'],
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: [39.5, 39.7, 40.0, 39.8, 39.6, 39.7, 40.1, 39.9, 39.8],  // ตัวอย่างข้อมูล
+                    borderColor: 'red',
+                    fill: false
+                }, {
+                    label: 'Humidity (%)',
+                    data: [80, 82, 81, 79, 80, 83, 81, 80, 79],  // ตัวอย่างข้อมูล
+                    borderColor: 'blue',
+                    fill: false
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
