@@ -1,32 +1,362 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temperature and Humidity Graph</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ระบบแจ้งซ่อม & ยืม-คืนอุปกรณ์โสตทัศนูปกรณ์</title>
+
+  <!-- Google Font: Kanit -->
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet" />
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- FontAwesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+  <style>
+    body, #pdfTemplate { font-family: 'Kanit', sans-serif; margin:0; padding:0; }
+    .navbar-custom { background-color: #6b8e23; }
+    .status-card { border-radius: .75rem; color: #fff; }
+    .status-pending { background-color: #ffb300; }
+    .status-completed { background-color: #4caf50; }
+    .status-out { background-color: #e91e63; }
+    .nav-link.active { background-color: #5a55ae; color: #fff !important; }
+
+    /* PDF template styling */
+    #pdfTemplate {
+      position: absolute; top: -10000px; left: -10000px;
+      width: 794px; padding: 40px;
+      background: #fff; color: #000;
+      box-sizing: border-box; font-size: 14px;
+    }
+    #pdfTemplate h2 { font-size: 18px; text-align: center; margin-bottom: 20px; }
+    #pdfTemplate .meta p { margin:4px 0; font-size:12px; line-height:1.5; }
+    #pdfTemplate table {
+      width:100%; border-collapse: collapse; margin-top:20px; table-layout: fixed;
+    }
+    #pdfTemplate th, #pdfTemplate td {
+      border:1px solid #000; padding:6px; font-size:10px; text-align:center;
+      vertical-align: middle;
+    }
+    #pdfTemplate img {
+      width:100%; height:100%; object-fit: contain;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="myChart"></canvas>
-    <script>
-        var ctx = document.getElementById('myChart').getContext('2d');
-        var myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '24:00'],
-                datasets: [{
-                    label: 'Temperature (°C)',
-                    data: [39.5, 39.7, 40.0, 39.8, 39.6, 39.7, 40.1, 39.9, 39.8],  // ตัวอย่างข้อมูล
-                    borderColor: 'red',
-                    fill: false
-                }, {
-                    label: 'Humidity (%)',
-                    data: [80, 82, 81, 79, 80, 83, 81, 80, 79],  // ตัวอย่างข้อมูล
-                    borderColor: 'blue',
-                    fill: false
-                }]
-            }
-        });
-    </script>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand text-white fs-3 fw-bold" href="#">ระบบแจ้งซ่อม & ยืม-คืนอุปกรณ์โสตทัศนูปกรณ์</a>
+      <div class="d-none d-lg-block text-white" id="currentDateTime"></div>
+    </div>
+  </nav>
+
+  <div class="container-fluid mt-4">
+    <div class="row">
+      <!-- Sidebar -->
+      <aside class="col-md-3">
+        <div class="d-grid gap-3">
+          <div class="p-3 status-card status-pending">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="h5">อุปกรณ์รอซ่อม</div>
+                <div class="fs-1 fw-bold"><span id="pendingCount">0</span> รายการ</div>
+              </div>
+              <i class="fa-solid fa-tools fa-2x"></i>
+            </div>
+          </div>
+          <div class="p-3 status-card status-completed">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="h5">ซ่อมเรียบร้อยแล้ว</div>
+                <div class="fs-1 fw-bold"><span id="completedCount">0</span> รายการ</div>
+              </div>
+              <i class="fa-solid fa-check-circle fa-2x"></i>
+            </div>
+          </div>
+          <div class="p-3 status-card status-out">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="h5">ไม่อยู่ในสต็อก</div>
+                <div class="fs-1 fw-bold">2 รายการ</div>
+              </div>
+              <i class="fa-solid fa-exclamation-circle fa-2x"></i>
+            </div>
+          </div>
+          <nav class="nav flex-column bg-white rounded shadow-sm">
+            <a class="nav-link active" href="#repairForm">แจ้งซ่อม</a>
+            <a class="nav-link" href="loan.html">ยืมอุปกรณ์</a>
+            <a class="nav-link" href="#returnForm">คืนอุปกรณ์</a>
+            <a class="nav-link" href="item-list.html">รายการอุปกรณ์</a>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main class="col-md-9">
+        <!-- Repair Form -->
+        <section id="repairForm">
+          <div class="card mb-4">
+            <div class="card-body">
+              <h4><i class="fa-solid fa-tools me-2"></i>ระบบแจ้งซ่อม</h4>
+              <form id="repairFormForm">
+                <div class="row g-3 mb-3">
+                  <div class="col-md-4">
+                    <label class="form-label">วันที่</label>
+                    <input type="date" id="repairDate" class="form-control" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">เลขที่งาน</label>
+                    <input type="text" id="jobNumber" class="form-control" placeholder="2568-00011" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">ผู้แจ้ง</label>
+                    <input type="text" id="reporter" class="form-control" placeholder="ชื่อผู้แจ้ง" required>
+                  </div>
+                </div>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">ประเภทอุปกรณ์</label>
+                    <select id="deviceType" class="form-select" required>
+                      <option value="">เลือกประเภท</option>
+                      <option>Respirator</option>
+                      <option>Incubator</option>
+                      <option>Infusion pump</option>
+                      <option>Syring pump</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">รุ่นอุปกรณ์</label>
+                    <select id="deviceModel" class="form-select" required>
+                      <option value="">เลือกรุ่นอุปกรณ์</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">เรื่องแจ้ง</label>
+                  <textarea id="description" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">รูปตอนแจ้ง (ถ้ามี)</label>
+                  <input type="file" id="images" class="form-control" accept="image/*">
+                </div>
+                <div class="text-end">
+                  <button type="reset" class="btn btn-secondary me-2">รีเซ็ต</button>
+                  <button type="submit" class="btn btn-success">สร้าง PDF</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Repair Table -->
+          <div class="card shadow-sm mb-5">
+            <div class="card-body">
+              <h5 class="card-title mb-3">รายการแจ้งซ่อม</h5>
+              <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                  <thead class="table-light">
+                    <tr>
+                      <th>วันที่</th>
+                      <th>เลขที่งาน</th>
+                      <th>ประเภท</th>
+                      <th>รุ่นอุปกรณ์</th>
+                      <th>เรื่องแจ้ง</th>
+                      <th>ผู้แจ้ง</th>
+                      <th>สถานะ</th>
+                      <th>วันที่สร้าง</th>
+                      <th>PDF</th>
+                      <th>จัดการ</th>
+                      <th>ลบ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="repairTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- PDF Template (off-screen) -->
+  <div id="pdfTemplate"></div>
+
+  <!-- Repair Image Modal -->
+  <div class="modal fade" id="repairModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">อัปโหลดรูปซ่อมเรียบร้อย</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="file" id="repairImageInput" class="form-control" accept="image/*" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+        <button type="button" class="btn btn-primary" id="saveRepairImageBtn">บันทึก</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const deviceOptions = {
+      Respirator: ['Fabian No.1/11','Fabian No.2/12','Fabian No.3/13','Fabian No.4/14','Fabian No.5/15','Fabian No.6/16','Fabian No.7/17','Fabian No.8/23','Fabian (HFOV1)/19','Fabian (HFOV2)/20','Fabian (HFOV3)/21','Fabian (HFOV4)/10'],
+      Incubator: ['Isolette C2000 No.1/25','Isolette C2000 No.2/26','Isolette C2000 No.3/28','Isolette C2000 No.4','Isolette C2000 No.5/29','Isolette C2000 No.6/30','Isolette C2000 No.7/31','Isolette C2000 No.8/32','Isolette C2000 No.9/33','Isolette C2000 No.10/34','Isolette C2000 No.11/35','Isolette C2000 No.12/37','Isolette C8000 No.13/38','Isolette C8000 No.14/39','Isolette C450 No.15/19','Isolette C100 No.16/36','Baby Leo No.17','C8000 plus No.18','C8000 plus No.19','Comen'],
+      'Infusion pump': ['TE 171. No. 2/83','TE 171. No. 6/117','TE-135 No. 8/212','TE-135 No. 9/209','TE-135 No. 11/211','TE-135 No. 14/136','I061','I062','I063','I064','I065','I066','I067','I068','I069','I070','I071','I072','I073','I074','I075','I076','I077','I078','I079','I080'],
+      'Syring pump': ['TE 331 No. 2/21','TE 331 No. 5/37','TE 331 No. 6/38','TE 331 No. 7/39','TE 331 No. 8/47','TE 331 No. 9/48','TE 331 No. 10/9','TE 331 No. 12/40','TE-SS700 No. 13/62-1','TE-SS700 No. 14/62-2','TE-SS700 No. 15/62-3','TE 331 No. 16/24','S011','S012','S013','S014','S015','S016','S017','S018','S019','S020']
+    };
+
+    let repairs = JSON.parse(localStorage.getItem('repairs')||'[]');
+    let currentJobForModal = null;
+
+    function updateDateTime() {
+      const now=new Date();
+      const wd=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+      const months=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+      document.getElementById('currentDateTime').textContent =
+        `วัน${wd[now.getDay()]}ที่ ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()+543} เวลา ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+      document.getElementById('pendingCount').textContent = repairs.filter(r=>r.status==='pending').length;
+      document.getElementById('completedCount').textContent = repairs.filter(r=>r.status==='completed').length;
+    }
+
+    async function createPDF(job) {
+      const r = repairs.find(x=>x.job===job);
+      const tpl=document.getElementById('pdfTemplate');
+      tpl.innerHTML =
+        `<h2>ใบแจ้งซ่อม</h2>`+
+        `<div class="meta">`+
+        `<p>วันที่: ${r.date}</p>`+
+        `<p>เลขที่งาน: ${r.job}</p>`+
+        `<p>ประเภท: ${r.type}</p>`+
+        `<p>รุ่นอุปกรณ์: ${r.model}</p>`+
+        `<p>เรื่อง: ${r.desc}</p>`+
+        `<p>ผู้แจ้ง: ${r.rep}</p>`+
+        `<p>สถานะ: ${r.status==='pending'?'รอซ่อม':'ซ่อมเรียบร้อยแล้ว'}</p>`+
+        `<p>วันที่สร้าง: ${r.created}</p>`+
+        `</div>`+
+        `<table><tr><th>รูปตอนแจ้ง</th><th>รูปตอนซ่อม</th></tr>`+
+        `<tr>`+
+        `<td>${r.initialImage?`<img src="${r.initialImage}"/>`:'-'}</td>`+
+        `<td>${r.repairImage?`<img src="${r.repairImage}"/>`:'-'}</td>`+
+        `</tr></table>`;
+      tpl.style.top='0'; tpl.style.left='0';
+      const canvas=await html2canvas(tpl,{scale:2});
+      const imgData=canvas.toDataURL('image/png');
+      const {jsPDF}=window.jspdf;
+      const pdf=new jsPDF('p','pt','a4');
+      const pdfW=pdf.internal.pageSize.getWidth();
+      const pdfH=(canvas.height*pdfW)/canvas.width;
+      pdf.addImage(imgData,'PNG',0,0,pdfW,pdfH);
+      const blobUrl=pdf.output('bloburl');
+      document.getElementById(`link-${job}`).href=blobUrl;
+      document.getElementById(`link-${job}`).target='_blank';
+      window.open(blobUrl,'_blank');
+      tpl.style.top='-10000px'; tpl.style.left='-10000px';
+    }
+
+    function appendRow(r) {
+      const tbody=document.getElementById('repairTableBody');
+      const tr=document.createElement('tr'); tr.dataset.job=r.job;
+      tr.innerHTML=
+        `<td>${r.date}</td>`+
+        `<td>${r.job}</td>`+
+        `<td>${r.type}</td>`+
+        `<td>${r.model}</td>`+
+        `<td>${r.desc}</td>`+
+        `<td>${r.rep}</td>`+
+        `<td class="status-cell">${r.status==='pending'?'รอซ่อม':'ซ่อมเรียบร้อยแล้ว'}</td>`+
+        `<td>${r.created}</td>`+
+        `<td><a href="#" id="link-${r.job}">PDF</a></td>`+
+        `<td>${r.status==='pending'?'<button class="btn btn-sm btn-success complete-btn">เสร็จสิ้น</button>':''}</td>`+
+        `<td><button class="btn btn-sm btn-danger delete-btn">ลบ</button></td>`;
+      tbody.appendChild(tr);
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      repairs.forEach(r=>appendRow(r));
+      updateDateTime(); setInterval(updateDateTime,1000);
+
+      document.getElementById('repairDate').valueAsDate=new Date();
+
+      document.getElementById('deviceType').addEventListener('change',function(){
+        const sel=document.getElementById('deviceModel');
+        sel.innerHTML='<option value="">เลือกรุ่นอุปกรณ์</option>';
+        (deviceOptions[this.value]||[]).forEach(o=>sel.add(new Option(o,o)));
+      });
+
+      document.getElementById('repairFormForm').addEventListener('submit',async function(e){
+        e.preventDefault();
+        const date=this.repairDate.value;
+        const job=this.jobNumber.value;
+        const desc=this.description.value;
+        const rep=this.reporter.value;
+        const type=this.deviceType.value;
+        const model=this.deviceModel.value;
+        const now=new Date();
+        const created=`${("0"+now.getDate()).slice(-2)}/${("0"+(now.getMonth()+1)).slice(-2)}/${now.getFullYear()+543} เวลา ${("0"+now.getHours()).slice(-2)}:${("0"+now.getMinutes()).slice(-2)}:${("0"+now.getSeconds()).slice(-2)}`;
+        let initialImage='';
+        const files=this.images.files;
+        const saveRec=()=>{
+          const rec={date,job,type,model,desc,rep,created,status:'pending',initialImage,repairImage:''};
+          repairs.push(rec);
+          localStorage.setItem('repairs',JSON.stringify(repairs));
+          appendRow(rec);
+          updateDateTime();
+          createPDF(job);
+          this.reset();
+        };
+        if(files.length){
+          const reader=new FileReader();
+          reader.onload=()=>{
+            initialImage=reader.result;
+            saveRec();
+          };
+          reader.readAsDataURL(files[0]);
+        } else saveRec();
+      });
+
+      document.getElementById('repairTableBody').addEventListener('click',e=>{
+        if(e.target.matches('.complete-btn')){
+          currentJobForModal=e.target.closest('tr').dataset.job;
+          new bootstrap.Modal(document.getElementById('repairModal')).show();
+        }
+        if(e.target.matches('.delete-btn')){
+          const tr=e.target.closest('tr');
+          const job=tr.dataset.job;
+          repairs=repairs.filter(r=>r.job!==job);
+          localStorage.setItem('repairs',JSON.stringify(repairs));
+          tr.remove();
+          updateDateTime();
+        }
+      });
+
+      document.getElementById('saveRepairImageBtn').addEventListener('click',()=>{
+        const input=document.getElementById('repairImageInput');
+        if(!currentJobForModal||!input.files.length){
+          alert('กรุณาเลือกไฟล์ก่อนบันทึก');
+          return;
+        }
+        const reader=new FileReader();
+        reader.onload=async()=>{
+          repairs=repairs.map(r=>r.job===currentJobForModal?{...r,status:'completed',repairImage:reader.result}:r);
+          localStorage.setItem('repairs',JSON.stringify(repairs));
+          const tr=document.querySelector(`tr[data-job="${currentJobForModal}"]`);
+          tr.querySelector('.status-cell').textContent='ซ่อมเรียบร้อยแล้ว';
+          tr.querySelector('.complete-btn')?.remove();
+          updateDateTime();
+          await createPDF(currentJobForModal);
+          bootstrap.Modal.getInstance(document.getElementById('repairModal')).hide();
+          input.value='';
+        };
+        reader.readAsDataURL(input.files[0]);
+      });
+    });
+  </script>
 </body>
 </html>
